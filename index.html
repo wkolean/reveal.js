@@ -43,7 +43,7 @@
 				<section>
 					<h2>Why?</h2>
 					<ol>
-						<li class="fragment">Local dev environment closely matches staging/production servers
+						<li class="fragment">Create a dev environment that closely matches staging/production servers
 							<ul>
 								<li class="fragment">Same OS</li>
 								<li class="fragment">Same software versions</li>
@@ -206,21 +206,6 @@ Software:
 
 				<section>
 					<section>
-						<h2>It's OK to be Root</h2>
-						<img src="img/root.png" />
-					</section>
-					<!--section>
-						<h2>Becoming root</h2>
-						<p class="fragment">
-							<pre><code>
-%su -
-							</pre></code>
-						</p>
-					</section-->
-				</section>
-
-				<section>
-					<section>
 						<h2>Snapshots</h2>
 						<p>Protection in case things go wrong</p>
 					</section>
@@ -241,6 +226,7 @@ Software:
 				<section>
 					<section>
 						<h2>VM Networking Setup</h2>
+						<p>Log in as root</p>
 					</section>
 					<section>
 						<h2>Get MAC address</h2>
@@ -366,6 +352,7 @@ Complete!
 						</pre></code>
 						<pre><code>
 %/etc/rc.d/init.d/smb start 
+%/etc/rc.d/init.d/nmb start 
 %chkconfig smb on
 %chkconfig nmb on
 						</pre></code>
@@ -439,12 +426,15 @@ host pwc-vm6 {
 						<img src="img/dhcp-success.png" />
 					</section>
 					<section>
-						<h2>Set domain name</h2>
+						<h2>Create domain name</h2>
 						<ul class="fragment">
 							<li>/etc/hosts</li>
 							<li>/etc/hosts.ac</li>
 							<li>c:\windows\system32\drivers\etc\hosts</li>
 						</ul>
+						<pre class="fragment"><code>
+sudo vi /etc/hosts
+						</pre></code>
 						<pre class="fragment"><code>
 192.168.104.101	drupal.pwc6.dev
 						</pre></code>
@@ -458,7 +448,7 @@ host pwc-vm6 {
 					</section>
 					<section>
 						<h2>Connect using web browser</h2>
-						<p>http://drupal.pwc6.dev/</p>
+						<p>http://192.168.104.101/</p>
 						<img src="img/browser.png" />
 					</section>
 					<section>
@@ -470,7 +460,7 @@ host pwc-vm6 {
 
 				<section>
 					<section>
-						<h2>Software</h2>
+						<h2>Install Software</h2>
 						<pre><code>
 %yum list installed | grep php
 php.x86_64              5.3.3-14.el6_3  @updates                                
@@ -536,7 +526,10 @@ php-gd.x86_64           5.3.3-14.el6_3  @updates
 				<section>
 					<section>
 						<h2>Apache Virtual Server</h2>
-						<p class="fragment">/etc/httpd/conf.d or /etc/apache2/extra</p>
+						<ul class="fragment">
+							<li>/etc/httpd/conf.d</li>
+							<li>/etc/apache2/extra</li>
+						</ul>
 					</section>
 					<section>
 						<h2>Create Virtual Server</h2>
@@ -561,6 +554,7 @@ php-gd.x86_64           5.3.3-14.el6_3  @updates
 					</section>
 					<section>
 						<h2>Domain Name should be working</h2>
+						<p>http://drupal.pwc6.dev/</p>
 						<img src="img/domain-name.png" />
 					</section>
 				</section>
@@ -591,7 +585,7 @@ alias cdbuild='cd /var/www/html/PwC/build'
 					</section>
 					<section>
 						<h2>VM Restart</h2>
-						<p>If response time is really slow, restart the VM</p>
+						<p>If response time becomes really slow, restart the VM</p>
 					</section>
 				</section>
 
@@ -618,7 +612,7 @@ alias cdbuild='cd /var/www/html/PwC/build'
 				</section>
 
 				<section>
-					<h2>Helpful Unix Commands</h2>
+					<h2>Helpful Terminal Programs</h2>
 					<ul>
 						<li>ssh</li>
 						<li>vi</li>
