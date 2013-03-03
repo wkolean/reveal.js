@@ -3,7 +3,7 @@
  * http://lab.hakim.se/reveal-js
  * MIT licensed
  *
- * Copyright (C) 2011-2012 Hakim El Hattab, http://hakim.se
+ * Copyright (C) 2013 Hakim El Hattab, http://hakim.se
  */
 var Reveal = (function(){
 
@@ -16,6 +16,19 @@ var Reveal = (function(){
 
 		// Configurations defaults, can be overridden at initialization time
 		config = {
+
+			// The "normal" size of the presentation, aspect ratio will be preserved
+			// when the presentation is scaled to fit different resolutions
+			width: 960,
+			height: 700,
+
+			// Factor of the display size that should remain empty around the content
+			margin: 0.1,
+
+			// Bounds for smallest/largest possible scale to apply to content
+			minScale: 0.2,
+			maxScale: 1.0,
+
 			// Display controls in the bottom right corner
 			controls: true,
 
@@ -31,7 +44,7 @@ var Reveal = (function(){
 			// Enable the slide overview mode
 			overview: true,
 
-			// Vertical centering of slides
+			// Vertical centring of slides
 			center: true,
 
 			// Enables touch navigation on devices with touch input
@@ -68,7 +81,7 @@ var Reveal = (function(){
 		// after n milliseconds
 		autoSlide = config.autoSlide,
 
-		// The horizontal and verical index of the currently active slide
+		// The horizontal and vertical index of the currently active slide
 		indexh = 0,
 		indexv = 0,
 
@@ -80,6 +93,9 @@ var Reveal = (function(){
 		// as a class to the body. This list contains the combined state of
 		// all current slides.
 		state = [],
+
+		// The current scale of the presentation (see width/height config)
+		scale = 1,
 
 		// Cached references to DOM elements
 		dom = {},
@@ -113,6 +129,9 @@ var Reveal = (function(){
 		// A delay used to deactivate the overview mode
 		deactivateOverviewTimeout = 0,
 
+		// Flags if the interaction event listeners are bound
+		eventsAreBound = false,
+
 		// Holds information about the currently ongoing touch input
 		touch = {
 			startX: 0,
@@ -128,7 +147,7 @@ var Reveal = (function(){
 	 */
 	function initialize( options ) {
 
-		if( ( !supports2DTransforms && !supports3DTransforms ) ) {
+		if( !supports2DTransforms && !supports3DTransforms ) {
 			document.body.setAttribute( 'class', 'no-transforms' );
 
 			// If the browser doesn't support core features we won't be
@@ -218,11 +237,7 @@ var Reveal = (function(){
 	 */
 	function hideAddressBar() {
 
-		if( navigator.userAgent.match( /(iphone|ipod)/i ) ) {
-			// Give the page some scrollable overflow
-			document.documentElement.style.overflow = 'scroll';
-			document.body.style.height = '120%';
-
+		if( /iphone|ipod|android/gi.test( navigator.userAgent ) && !/crios/gi.test( navigator.userAgent ) ) {
 			// Events that should trigger the address bar to hide
 			window.addEventListener( 'load', removeAddressBar, false );
 			window.addEventListener( 'orientationchange', removeAddressBar, false );
@@ -261,7 +276,7 @@ var Reveal = (function(){
 			}
 		}
 
-		// Called once synchronous scritps finish loading
+		// Called once synchronous scripts finish loading
 		function proceed() {
 			if( scriptsAsync.length ) {
 				// Load asynchronous scripts
@@ -298,10 +313,6 @@ var Reveal = (function(){
 		// Updates the presentation to match the current configuration values
 		configure();
 
-		// Force an initial layout, will thereafter be invoked as the window
-		// is resized
-		layout();
-
 		// Read the initial hash
 		readURL();
 
@@ -323,40 +334,56 @@ var Reveal = (function(){
 	/**
 	 * Applies the configuration settings from the config object.
 	 */
-	function configure() {
+	function configure( options ) {
 
-		if( supports3DTransforms === false ) {
-			config.transition = 'linear';
+		dom.wrapper.classList.remove( config.transition );
+
+		// New config options may be passed when this method
+		// is invoked through the API after initialization
+		if( typeof options === 'object' ) extend( config, options );
+
+		// Force linear transition based on browser capabilities
+		if( supports3DTransforms === false ) config.transition = 'linear';
+
+		dom.wrapper.classList.add( config.transition );
+
+		if( dom.controls ) {
+			dom.controls.style.display = ( config.controls && dom.controls ) ? 'block' : 'none';
 		}
 
-		if( config.controls && dom.controls ) {
-			dom.controls.style.display = 'block';
-		}
-
-		if( config.progress && dom.progress ) {
-			dom.progress.style.display = 'block';
-		}
-
-		if( config.transition !== 'default' ) {
-			dom.wrapper.classList.add( config.transition );
+		if( dom.progress ) {
+			dom.progress.style.display = ( config.progress && dom.progress ) ? 'block' : 'none';
 		}
 
 		if( config.rtl ) {
 			dom.wrapper.classList.add( 'rtl' );
 		}
+		else {
+			dom.wrapper.classList.remove( 'rtl' );
+		}
 
 		if( config.center ) {
 			dom.wrapper.classList.add( 'center' );
+		}
+		else {
+			dom.wrapper.classList.remove( 'center' );
 		}
 
 		if( config.mouseWheel ) {
 			document.addEventListener( 'DOMMouseScroll', onDocumentMouseScroll, false ); // FF
 			document.addEventListener( 'mousewheel', onDocumentMouseScroll, false );
 		}
+		else {
+			document.removeEventListener( 'DOMMouseScroll', onDocumentMouseScroll, false ); // FF
+			document.removeEventListener( 'mousewheel', onDocumentMouseScroll, false );
+		}
 
 		// 3D links
 		if( config.rollingLinks ) {
-			linkify();
+			enable3DLinks();
+		}
+		else {
+			disable3DLinks();
 		}
 
 		// Load the theme in the config, if it's not already loaded
@@ -371,12 +398,17 @@ var Reveal = (function(){
 			}
 		}
 
+		// Force a layout to make sure the current config is accounted for
+		layout();
+
 	}
 
 	/**
 	 * Binds all event listeners.
 	 */
 	function addEventListeners() {
+
+		eventsAreBound = true;
 
 		window.addEventListener( 'hashchange', onWindowHashChange, false );
 		window.addEventListener( 'resize', onWindowResize, false );
@@ -392,17 +424,17 @@ var Reveal = (function(){
 		}
 
 		if ( config.progress && dom.progress ) {
-			dom.progress.addEventListener( 'click', preventAndForward( onProgressClick ), false );
+			dom.progress.addEventListener( 'click', onProgressClicked, false );
 		}
 
 		if ( config.controls && dom.controls ) {
-			var actionEvent = 'ontouchstart' in window ? 'touchstart' : 'click';
-			dom.controlsLeft.forEach( function( el ) { el.addEventListener( actionEvent, preventAndForward( navigateLeft ), false ); } );
-			dom.controlsRight.forEach( function( el ) { el.addEventListener( actionEvent, preventAndForward( navigateRight ), false ); } );
-			dom.controlsUp.forEach( function( el ) { el.addEventListener( actionEvent, preventAndForward( navigateUp ), false ); } );
-			dom.controlsDown.forEach( function( el ) { el.addEventListener( actionEvent, preventAndForward( navigateDown ), false ); } );
-			dom.controlsPrev.forEach( function( el ) { el.addEventListener( actionEvent, preventAndForward( navigatePrev ), false ); } );
-			dom.controlsNext.forEach( function( el ) { el.addEventListener( actionEvent, preventAndForward( navigateNext ), false ); } );
+			var actionEvent = 'ontouchstart' in window && window.ontouchstart != null ? 'touchstart' : 'click';
+			dom.controlsLeft.forEach( function( el ) { el.addEventListener( actionEvent, onNavigateLeftClicked, false ); } );
+			dom.controlsRight.forEach( function( el ) { el.addEventListener( actionEvent, onNavigateRightClicked, false ); } );
+			dom.controlsUp.forEach( function( el ) { el.addEventListener( actionEvent, onNavigateUpClicked, false ); } );
+			dom.controlsDown.forEach( function( el ) { el.addEventListener( actionEvent, onNavigateDownClicked, false ); } );
+			dom.controlsPrev.forEach( function( el ) { el.addEventListener( actionEvent, onNavigatePrevClicked, false ); } );
+			dom.controlsNext.forEach( function( el ) { el.addEventListener( actionEvent, onNavigateNextClicked, false ); } );
 		}
 
 	}
@@ -411,6 +443,8 @@ var Reveal = (function(){
 	 * Unbinds all event listeners.
 	 */
 	function removeEventListeners() {
+
+		eventsAreBound = false;
 
 		document.removeEventListener( 'keydown', onDocumentKeyDown, false );
 		window.removeEventListener( 'hashchange', onWindowHashChange, false );
@@ -423,17 +457,17 @@ var Reveal = (function(){
 		}
 
 		if ( config.progress && dom.progress ) {
-			dom.progress.removeEventListener( 'click', preventAndForward( onProgressClick ), false );
+			dom.progress.removeEventListener( 'click', onProgressClicked, false );
 		}
 
 		if ( config.controls && dom.controls ) {
-			var actionEvent = 'ontouchstart' in window ? 'touchstart' : 'click';
-			dom.controlsLeft.forEach( function( el ) { el.removeEventListener( actionEvent, preventAndForward( navigateLeft ), false ); } );
-			dom.controlsRight.forEach( function( el ) { el.removeEventListener( actionEvent, preventAndForward( navigateRight ), false ); } );
-			dom.controlsUp.forEach( function( el ) { el.removeEventListener( actionEvent, preventAndForward( navigateUp ), false ); } );
-			dom.controlsDown.forEach( function( el ) { el.removeEventListener( actionEvent, preventAndForward( navigateDown ), false ); } );
-			dom.controlsPrev.forEach( function( el ) { el.removeEventListener( actionEvent, preventAndForward( navigatePrev ), false ); } );
-			dom.controlsNext.forEach( function( el ) { el.removeEventListener( actionEvent, preventAndForward( navigateNext ), false ); } );
+			var actionEvent = 'ontouchstart' in window && window.ontouchstart != null ? 'touchstart' : 'click';
+			dom.controlsLeft.forEach( function( el ) { el.removeEventListener( actionEvent, onNavigateLeftClicked, false ); } );
+			dom.controlsRight.forEach( function( el ) { el.removeEventListener( actionEvent, onNavigateRightClicked, false ); } );
+			dom.controlsUp.forEach( function( el ) { el.removeEventListener( actionEvent, onNavigateUpClicked, false ); } );
+			dom.controlsDown.forEach( function( el ) { el.removeEventListener( actionEvent, onNavigateDownClicked, false ); } );
+			dom.controlsPrev.forEach( function( el ) { el.removeEventListener( actionEvent, onNavigatePrevClicked, false ); } );
+			dom.controlsNext.forEach( function( el ) { el.removeEventListener( actionEvent, onNavigateNextClicked, false ); } );
 		}
 
 	}
@@ -476,30 +510,23 @@ var Reveal = (function(){
 	}
 
 	/**
-	 * Prevents an events defaults behavior calls the
-	 * specified delegate.
-	 *
-	 * @param {Function} delegate The method to call
-	 * after the wrapper has been executed
-	 */
-	function preventAndForward( delegate ) {
-
-		return function( event ) {
-			event.preventDefault();
-			delegate.call( null, event );
-		};
-
-	}
-
-	/**
 	 * Causes the address bar to hide on mobile devices,
 	 * more vertical space ftw.
 	 */
 	function removeAddressBar() {
 
+		if( window.orientation === 0 ) {
+			document.documentElement.style.overflow = 'scroll';
+			document.body.style.height = '120%';
+		}
+		else {
+			document.documentElement.style.overflow = '';
+			document.body.style.height = '100%';
+		}
+
 		setTimeout( function() {
 			window.scrollTo( 0, 1 );
-		}, 0 );
+		}, 10 );
 
 	}
 
@@ -519,25 +546,76 @@ var Reveal = (function(){
 	/**
 	 * Wrap all links in 3D goodness.
 	 */
-	function linkify() {
+	function enable3DLinks() {
 
 		if( supports3DTransforms && !( 'msPerspective' in document.body.style ) ) {
-			var nodes = document.querySelectorAll( SLIDES_SELECTOR + ' a:not(.image)' );
+			var anchors = document.querySelectorAll( SLIDES_SELECTOR + ' a:not(.image)' );
 
-			for( var i = 0, len = nodes.length; i < len; i++ ) {
-				var node = nodes[i];
+			for( var i = 0, len = anchors.length; i < len; i++ ) {
+				var anchor = anchors[i];
 
-				if( node.textContent && !node.querySelector( '*' ) && ( !node.className || !node.classList.contains( node, 'roll' ) ) ) {
+				if( anchor.textContent && !anchor.querySelector( '*' ) && ( !anchor.className || !anchor.classList.contains( anchor, 'roll' ) ) ) {
 					var span = document.createElement('span');
-					span.setAttribute('data-title', node.text);
-					span.innerHTML = node.innerHTML;
+					span.setAttribute('data-title', anchor.text);
+					span.innerHTML = anchor.innerHTML;
 
-					node.classList.add( 'roll' );
-					node.innerHTML = '';
-					node.appendChild(span);
+					anchor.classList.add( 'roll' );
+					anchor.innerHTML = '';
+					anchor.appendChild(span);
 				}
 			}
 		}
+
+	}
+
+	/**
+	 * Unwrap all 3D links.
+	 */
+	function disable3DLinks() {
+
+		var anchors = document.querySelectorAll( SLIDES_SELECTOR + ' a.roll' );
+
+		for( var i = 0, len = anchors.length; i < len; i++ ) {
+			var anchor = anchors[i];
+			var span = anchor.querySelector( 'span' );
+
+			if( span ) {
+				anchor.classList.remove( 'roll' );
+				anchor.innerHTML = span.innerHTML;
+			}
+		}
+
+	}
+
+	/**
+	 * Return a sorted fragments list, ordered by an increasing
+	 * "data-fragment-index" attribute.
+	 *
+	 * Fragments will be revealed in the order that they are returned by
+	 * this function, so you can use the index attributes to control the 
+	 * order of fragment appearance.
+	 *
+	 * To maintain a sensible default fragment order, fragments are presumed
+	 * to be passed in document order. This function adds a "fragment-index"
+	 * attribute to each node if such an attribute is not already present,
+	 * and sets that attribute to an integer value which is the position of
+	 * the fragment within the fragments list.
+	 */
+	function sortFragments( fragments ) {
+
+		var a = toArray( fragments );
+
+		a.forEach( function( el, idx ) {
+			if( !el.hasAttribute( 'data-fragment-index' ) ) {
+				el.setAttribute( 'data-fragment-index', idx );
+			}
+		} );
+
+		a.sort( function( l, r ) {
+			return l.getAttribute( 'data-fragment-index' ) - r.getAttribute( 'data-fragment-index');
+		} );
+
+		return a
 
 	}
 
@@ -547,13 +625,58 @@ var Reveal = (function(){
 	 */
 	function layout() {
 
-		if( config.center ) {
+		if( dom.wrapper ) {
+
+			// Available space to scale within
+			var availableWidth = dom.wrapper.offsetWidth,
+				availableHeight = dom.wrapper.offsetHeight;
+
+			// Reduce available space by margin
+			availableWidth -= ( availableHeight * config.margin );
+			availableHeight -= ( availableHeight * config.margin );
+
+			// Dimensions of the content
+			var slideWidth = config.width,
+				slideHeight = config.height;
+
+			// Slide width may be a percentage of available width
+			if( typeof slideWidth === 'string' && /%$/.test( slideWidth ) ) {
+				slideWidth = parseInt( slideWidth, 10 ) / 100 * availableWidth;
+			}
+
+			// Slide height may be a percentage of available height
+			if( typeof slideHeight === 'string' && /%$/.test( slideHeight ) ) {
+				slideHeight = parseInt( slideHeight, 10 ) / 100 * availableHeight;
+			}
+
+			dom.slides.style.width = slideWidth + 'px';
+			dom.slides.style.height = slideHeight + 'px';
+
+			// Determine scale of content to fit within available space
+			scale = Math.min( availableWidth / slideWidth, availableHeight / slideHeight );
+
+			// Respect max/min scale settings
+			scale = Math.max( scale, config.minScale );
+			scale = Math.min( scale, config.maxScale );
+
+			// Prefer applying scale via zoom since Chrome blurs scaled content
+			// with nested transforms
+			if( typeof dom.slides.style.zoom !== 'undefined' && !navigator.userAgent.match( /(iphone|ipod|ipad|android)/gi ) ) {
+				dom.slides.style.zoom = scale;
+			}
+			// Apply scale transform as a fallback
+			else {
+				var transform = 'translate(-50%, -50%) scale('+ scale +') translate(50%, 50%)';
+
+				dom.slides.style.WebkitTransform = transform;
+				dom.slides.style.MozTransform = transform;
+				dom.slides.style.msTransform = transform;
+				dom.slides.style.OTransform = transform;
+				dom.slides.style.transform = transform;
+			}
 
 			// Select all slides, vertical and horizontal
 			var slides = toArray( document.querySelectorAll( SLIDES_SELECTOR ) );
-
-			// Determine the minimum top offset for slides
-			var minTop = -dom.wrapper.offsetHeight / 2;
 
 			for( var i = 0, len = slides.length; i < len; i++ ) {
 				var slide = slides[ i ];
@@ -563,14 +686,20 @@ var Reveal = (function(){
 					continue;
 				}
 
-				// Vertical stacks are not centered since their section 
-				// children will be
-				if( slide.classList.contains( 'stack' ) ) {
-					slide.style.top = 0;
+				if( config.center ) {
+					// Vertical stacks are not centred since their section
+					// children will be
+					if( slide.classList.contains( 'stack' ) ) {
+						slide.style.top = 0;
+					}
+					else {
+						slide.style.top = Math.max( - ( slide.offsetHeight / 2 ) - 20, -slideHeight / 2 ) + 'px';
+					}
 				}
 				else {
-					slide.style.top = Math.max( - ( slide.offsetHeight / 2 ) - 20, minTop ) + 'px';
+					slide.style.top = '';
 				}
+
 			}
 
 		}
@@ -594,7 +723,7 @@ var Reveal = (function(){
 	}
 
 	/**
-	 * Retrieves the vertical index which was stored using 
+	 * Retrieves the vertical index which was stored using
 	 * #setPreviousVerticalIndex() or 0 if no previous index
 	 * exists.
 	 *
@@ -621,6 +750,9 @@ var Reveal = (function(){
 
 		// Only proceed if enabled in config
 		if( config.overview ) {
+
+			// Don't auto-slide while in overview mode
+			cancelAutoSlide();
 
 			var wasActive = dom.wrapper.classList.contains( 'overview' );
 
@@ -741,6 +873,8 @@ var Reveal = (function(){
 
 			slide( indexh, indexv );
 
+			cueAutoSlide();
+
 			// Notify observers of the overview hiding
 			dispatchEvent( 'overviewhidden', {
 				'indexh': indexh,
@@ -764,7 +898,7 @@ var Reveal = (function(){
 			override ? activateOverview() : deactivateOverview();
 		}
 		else {
-			isOverviewActive() ? deactivateOverview() : activateOverview();
+			isOverview() ? deactivateOverview() : activateOverview();
 		}
 
 	}
@@ -775,7 +909,7 @@ var Reveal = (function(){
 	 * @return {Boolean} true if the overview is active,
 	 * false otherwise
 	 */
-	function isOverviewActive() {
+	function isOverview() {
 
 		return dom.wrapper.classList.contains( 'overview' );
 
@@ -809,7 +943,14 @@ var Reveal = (function(){
 	 */
 	function pause() {
 
+		var wasPaused = dom.wrapper.classList.contains( 'paused' );
+
+		cancelAutoSlide();
 		dom.wrapper.classList.add( 'paused' );
+
+		if( wasPaused === false ) {
+			dispatchEvent( 'paused' );
+		}
 
 	}
 
@@ -818,7 +959,14 @@ var Reveal = (function(){
 	 */
 	function resume() {
 
+		var wasPaused = dom.wrapper.classList.contains( 'paused' );
+
+		cueAutoSlide();
 		dom.wrapper.classList.remove( 'paused' );
+
+		if( wasPaused ) {
+			dispatchEvent( 'resumed' );
+		}
 
 	}
 
@@ -913,7 +1061,7 @@ var Reveal = (function(){
 		}
 
 		// If the overview is active, re-activate it to update positions
-		if( isOverviewActive() ) {
+		if( isOverview() ) {
 			activateOverview();
 		}
 
@@ -932,7 +1080,7 @@ var Reveal = (function(){
 
 		// Show fragment, if specified
 		if( typeof f !== 'undefined' ) {
-			var fragments = currentSlide.querySelectorAll( '.fragment' );
+			var fragments = sortFragments( currentSlide.querySelectorAll( '.fragment' ) );
 
 			toArray( fragments ).forEach( function( fragment, indexf ) {
 				if( indexf < f ) {
@@ -1024,7 +1172,7 @@ var Reveal = (function(){
 
 				// Optimization; hide all slides that are three or more steps
 				// away from the present slide
-				if( isOverviewActive() === false ) {
+				if( isOverview() === false ) {
 					// The distance loops so that it measures 1 between the first
 					// and last slides
 					var distance = Math.abs( ( index - i ) % ( slidesLength - 3 ) ) || 0;
@@ -1066,7 +1214,7 @@ var Reveal = (function(){
 			var slideAutoSlide = slides[index].getAttribute( 'data-autoslide' );
 			if( slideAutoSlide ) {
 				autoSlide = parseInt( slideAutoSlide, 10 );
-			} 
+			}
 			else {
 				autoSlide = config.autoSlide;
 			}
@@ -1303,7 +1451,8 @@ var Reveal = (function(){
 
 		// Vertical slides:
 		if( document.querySelector( VERTICAL_SLIDES_SELECTOR + '.present' ) ) {
-			var verticalFragments = document.querySelectorAll( VERTICAL_SLIDES_SELECTOR + '.present .fragment:not(.visible)' );
+			var verticalFragments = sortFragments( document.querySelectorAll( VERTICAL_SLIDES_SELECTOR + '.present .fragment:not(.visible)' ) );
+
 			if( verticalFragments.length ) {
 				verticalFragments[0].classList.add( 'visible' );
 
@@ -1314,7 +1463,8 @@ var Reveal = (function(){
 		}
 		// Horizontal slides:
 		else {
-			var horizontalFragments = document.querySelectorAll( HORIZONTAL_SLIDES_SELECTOR + '.present .fragment:not(.visible)' );
+			var horizontalFragments = sortFragments( document.querySelectorAll( HORIZONTAL_SLIDES_SELECTOR + '.present .fragment:not(.visible)' ) );
+
 			if( horizontalFragments.length ) {
 				horizontalFragments[0].classList.add( 'visible' );
 
@@ -1338,7 +1488,8 @@ var Reveal = (function(){
 
 		// Vertical slides:
 		if( document.querySelector( VERTICAL_SLIDES_SELECTOR + '.present' ) ) {
-			var verticalFragments = document.querySelectorAll( VERTICAL_SLIDES_SELECTOR + '.present .fragment.visible' );
+			var verticalFragments = sortFragments( document.querySelectorAll( VERTICAL_SLIDES_SELECTOR + '.present .fragment.visible' ) );
+
 			if( verticalFragments.length ) {
 				verticalFragments[ verticalFragments.length - 1 ].classList.remove( 'visible' );
 
@@ -1349,7 +1500,8 @@ var Reveal = (function(){
 		}
 		// Horizontal slides:
 		else {
-			var horizontalFragments = document.querySelectorAll( HORIZONTAL_SLIDES_SELECTOR + '.present .fragment.visible' );
+			var horizontalFragments = sortFragments( document.querySelectorAll( HORIZONTAL_SLIDES_SELECTOR + '.present .fragment.visible' ) );
+
 			if( horizontalFragments.length ) {
 				horizontalFragments[ horizontalFragments.length - 1 ].classList.remove( 'visible' );
 
@@ -1371,16 +1523,25 @@ var Reveal = (function(){
 		clearTimeout( autoSlideTimeout );
 
 		// Cue the next auto-slide if enabled
-		if( autoSlide ) {
+		if( autoSlide && !isPaused() && !isOverview() ) {
 			autoSlideTimeout = setTimeout( navigateNext, autoSlide );
 		}
+
+	}
+
+	/**
+	 * Cancels any ongoing request to auto-slide.
+	 */
+	function cancelAutoSlide() {
+
+		clearTimeout( autoSlideTimeout );
 
 	}
 
 	function navigateLeft() {
 
 		// Prioritize hiding fragments
-		if( availableRoutes().left && isOverviewActive() || previousFragment() === false ) {
+		if( availableRoutes().left && isOverview() || previousFragment() === false ) {
 			slide( indexh - 1 );
 		}
 
@@ -1389,7 +1550,7 @@ var Reveal = (function(){
 	function navigateRight() {
 
 		// Prioritize revealing fragments
-		if( availableRoutes().right && isOverviewActive() || nextFragment() === false ) {
+		if( availableRoutes().right && isOverview() || nextFragment() === false ) {
 			slide( indexh + 1 );
 		}
 
@@ -1398,7 +1559,7 @@ var Reveal = (function(){
 	function navigateUp() {
 
 		// Prioritize hiding fragments
-		if( availableRoutes().up && isOverviewActive() || previousFragment() === false ) {
+		if( availableRoutes().up && isOverview() || previousFragment() === false ) {
 			slide( indexh, indexv - 1 );
 		}
 
@@ -1407,7 +1568,7 @@ var Reveal = (function(){
 	function navigateDown() {
 
 		// Prioritize revealing fragments
-		if( availableRoutes().down && isOverviewActive() || nextFragment() === false ) {
+		if( availableRoutes().down && isOverview() || nextFragment() === false ) {
 			slide( indexh, indexv + 1 );
 		}
 
@@ -1476,9 +1637,14 @@ var Reveal = (function(){
 
 		// Disregard the event if there's a focused element or a
 		// keyboard modifier key is present
-		if ( hasFocus || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey ) return;
+		if( hasFocus || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey ) return;
 
 		var triggered = true;
+
+		// while paused only allow "unpausing" keyboard events (b and .)
+		if( isPaused() && [66,190,191].indexOf( event.keyCode ) === -1 ) {
+			return false;
+		}
 
 		switch( event.keyCode ) {
 			// p, page up
@@ -1498,9 +1664,9 @@ var Reveal = (function(){
 			// end
 			case 35: slide( Number.MAX_VALUE ); break;
 			// space
-			case 32: isOverviewActive() ? deactivateOverview() : navigateNext(); break;
+			case 32: isOverview() ? deactivateOverview() : navigateNext(); break;
 			// return
-			case 13: isOverviewActive() ? deactivateOverview() : triggered = false; break;
+			case 13: isOverview() ? deactivateOverview() : triggered = false; break;
 			// b, period, Logitech presenter tools "black screen" button
 			case 66: case 190: case 191: togglePause(); break;
 			// f
@@ -1659,7 +1825,9 @@ var Reveal = (function(){
 	 *
 	 * ( clickX / presentationWidth ) * numberOfSlides
 	 */
-	function onProgressClick( event ) {
+	function onProgressClicked( event ) {
+
+		event.preventDefault();
 
 		var slidesTotal = toArray( document.querySelectorAll( HORIZONTAL_SLIDES_SELECTOR ) ).length;
 		var slideIndex = Math.floor( ( event.clientX / dom.wrapper.offsetWidth ) * slidesTotal );
@@ -1667,6 +1835,16 @@ var Reveal = (function(){
 		slide( slideIndex );
 
 	}
+
+	/**
+	 * Event handler for navigation control buttons.
+	 */
+	function onNavigateLeftClicked( event ) { event.preventDefault(); navigateLeft(); }
+	function onNavigateRightClicked( event ) { event.preventDefault(); navigateRight(); }
+	function onNavigateUpClicked( event ) { event.preventDefault(); navigateUp(); }
+	function onNavigateDownClicked( event ) { event.preventDefault(); navigateDown(); }
+	function onNavigatePrevClicked( event ) { event.preventDefault(); navigatePrev(); }
+	function onNavigateNextClicked( event ) { event.preventDefault(); navigateNext(); }
 
 	/**
 	 * Handler for the window level 'hashchange' event.
@@ -1693,10 +1871,8 @@ var Reveal = (function(){
 
 		// TODO There's a bug here where the event listeners are not
 		// removed after deactivating the overview.
-		if( isOverviewActive() ) {
+		if( eventsAreBound && isOverview() ) {
 			event.preventDefault();
-
-			deactivateOverview();
 
 			var element = event.target;
 
@@ -1704,11 +1880,17 @@ var Reveal = (function(){
 				element = element.parentNode;
 			}
 
-			if( element.nodeName.match( /section/gi ) ) {
-				var h = parseInt( element.getAttribute( 'data-index-h' ), 10 ),
-					v = parseInt( element.getAttribute( 'data-index-v' ), 10 );
+			if( element && !element.classList.contains( 'disabled' ) ) {
 
-				slide( h, v );
+				deactivateOverview();
+
+				if( element.nodeName.match( /section/gi ) ) {
+					var h = parseInt( element.getAttribute( 'data-index-h' ), 10 ),
+						v = parseInt( element.getAttribute( 'data-index-v' ), 10 );
+
+					slide( h, v );
+				}
+
 			}
 		}
 
@@ -1722,6 +1904,7 @@ var Reveal = (function(){
 
 	return {
 		initialize: initialize,
+		configure: configure,
 
 		// Navigation methods
 		slide: slide,
@@ -1752,12 +1935,28 @@ var Reveal = (function(){
 		// Toggles the "black screen" mode on/off
 		togglePause: togglePause,
 
+		// State checks
+		isOverview: isOverview,
+		isPaused: isPaused,
+
 		// Adds or removes all internal event listeners (such as keyboard)
 		addEventListeners: addEventListeners,
 		removeEventListeners: removeEventListeners,
 
 		// Returns the indices of the current, or specified, slide
 		getIndices: getIndices,
+
+		// Returns the slide at the specified index, y is optional
+		getSlide: function( x, y ) {
+			var horizontalSlide = document.querySelectorAll( HORIZONTAL_SLIDES_SELECTOR )[ x ];
+			var verticalSlides = horizontalSlide && horizontalSlide.querySelectorAll( 'section' );
+
+			if( typeof y !== 'undefined' ) {
+				return verticalSlides ? verticalSlides[ y ] : undefined;
+			}
+
+			return horizontalSlide;
+		},
 
 		// Returns the previous slide element, may be null
 		getPreviousSlide: function() {
@@ -1769,6 +1968,11 @@ var Reveal = (function(){
 			return currentSlide;
 		},
 
+		// Returns the current scale of the presentation content
+		getScale: function() {
+			return scale;
+		},
+
 		// Helper method, retrieves query string as a key/value hash
 		getQueryHash: function() {
 			var query = {};
@@ -1778,6 +1982,21 @@ var Reveal = (function(){
 			} );
 
 			return query;
+		},
+
+		// Returns true if we're currently on the first slide
+		isFirstSlide: function() {
+			return document.querySelector( SLIDES_SELECTOR + '.past' ) == null ? true : false;
+		},
+
+		// Returns true if we're currently on the last slide
+		isLastSlide: function() {
+			if( currentSlide && currentSlide.classList.contains( '.stack' ) ) {
+				return currentSlide.querySelector( SLIDES_SELECTOR + '.future' ) == null ? true : false;
+			}
+			else {
+				return document.querySelector( SLIDES_SELECTOR + '.future' ) == null ? true : false;
+			}
 		},
 
 		// Forward event binding to the reveal DOM element

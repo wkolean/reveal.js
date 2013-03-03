@@ -37,7 +37,7 @@ Markup heirarchy needs to be ``<div class="reveal"> <div class="slides"> <sectio
 
 It's possible to write your slides using Markdown. To enable Markdown, add the ```data-markdown``` attribute to your ```<section>``` elements and wrap the contents in a ```<script type="text/template">``` like the example below.
 
-This is based on [data-markdown](https://gist.github.com/1343518) from [Paul Irish](https://github.com/paulirish) which in turn uses [showdown](https://github.com/coreyti/showdown/). This is sensitive to indentation (avoid mixing tabs and spaces) and line breaks (avoid consecutive breaks).
+This is based on [data-markdown](https://gist.github.com/1343518) from [Paul Irish](https://github.com/paulirish) which in turn uses [showdown](https://github.com/coreyti/showdown/). Sensitive to indentation (avoid mixing tabs and spaces) and line breaks (avoid consecutive breaks).
 
 ```html
 <section data-markdown>
@@ -49,12 +49,21 @@ This is based on [data-markdown](https://gist.github.com/1343518) from [Paul Iri
 </section>
 ```
 
+#### External Markdown
+
+You can write your content as a separate file and have reveal.js load it at runtime. Note the separator arguments which determine how slides are delimited in the external file.
+
+```html
+<section data-markdown="example.md" data-separator="^\n\n\n" data-vertical="^\n\n"></section>
+```
+
 ### Configuration
 
 At the end of your page you need to initialize reveal by running the following code. Note that all config values are optional and will default as specified below.
 
 ```javascript
 Reveal.initialize({
+
 	// Display controls in the bottom right corner
 	controls: true,
 
@@ -92,10 +101,40 @@ Reveal.initialize({
 
 	// Transition style
 	transition: 'default' // default/cube/page/concave/zoom/linear/fade/none
+
 });
 ```
 
 Note that the new default vertical centering option will break compatibility with slides that were using transitions with backgrounds (`cube` and `page`). To restore the previous behavior, set `center` to `false`.
+
+
+### Presentation Size
+
+All presentations have a normal size, that is the resolution at which they are authored. The framework will automatically scale presentations uniformly based on this size to ensure that everything fits on any given display or viewport. 
+
+See below for a list of configuration options related to sizing, including default values:
+
+```javascript
+Reveal.initialize({
+	
+	...
+	
+	// The "normal" size of the presentation, aspect ratio will be preserved
+	// when the presentation is scaled to fit different resolutions. Can be
+	// specified using percentage units.
+	width: 960,
+	height: 700,
+	
+	// Factor of the display size that should remain empty around the content
+	margin: 0.1,
+	
+	// Bounds for smallest/largest possible scale to apply to content
+	minScale: 0.2,
+	maxScale: 1.0
+	
+});
+```
+
 
 ### Dependencies
 
@@ -239,6 +278,16 @@ Multiple fragments can be applied to the same element sequentially by wrapping i
 </section>
 ```
 
+The display order of fragments can be controlled using the ```data-fragment-index``` attribute.
+
+```html
+<section>
+	<p class="fragment" data-fragment-index="3">Appears last</p>
+	<p class="fragment" data-fragment-index="1">Appears first</p>
+	<p class="fragment" data-fragment-index="2">Appears second</p>
+</section>
+```
+
 ### Fragment events
 
 When a slide fragment is either shown or hidden reveal.js will dispatch an event.
@@ -370,5 +419,5 @@ If you want to customise reveal.js without running grunt.js you can alter the HT
 
 MIT licensed
 
-Copyright (C) 2011-2013 Hakim El Hattab, http://hakim.se
+Copyright (C) 2013 Hakim El Hattab, http://hakim.se
 
