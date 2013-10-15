@@ -35,177 +35,111 @@
 			<div class="slides">
 
 				<section>
-					<h2>PwC Drupal CMS</h2>
+					<h2>Leap Musical Loop Experiment</h2>
 				</section>
 
 				<section>
-					<h2>Why CMS</h2>
+					<h2>Goals</h2>
+					<p>Control multiple loops using Leap</p>
+				</section>
+
+				<section>
+					<h2>Organization</h2>
+				</section>
+
+				<section>
+					<h2>Loop class</h2>
+					<pre><code>
+new Loop({mp3:'loops/piano_loop_1.mp3', muted:false, volume:.4, hands:1, pointables:1})
+					</code></pre>
 					<ul>
-						<li class="fragment">Hybrid iPad/Web app</li>
-						<li class="fragment">PwC controls the content</li>
-						<li class="fragment">Quicker updates</li>
+						<li>Define mp3 file and other options</li>
+						<li>Define what should trigger play</li>
+						<li>play/pause methods</li>
 					</ul>
 				</section>
 
 				<section>
-					<h2>Why Drupal</h2>
-					<ul>
-						<li class="fragment">Free</li>
-						<li class="fragment">Documented</li>
-						<li class="fragment">PHP</li>
-					</ul>
-				</section>
+					<h2>Controller object</h2>
+					<pre><code>
+var loops = [];
+loops.push(new Loop({mp3:'loops/piano_loop_1.mp3', muted:false, volume:.4, hands:1, pointables:1}));
 
-				<section>
-					<h2>What you need to know about Drupal</h2>
-					<ul>
-						<li class="fragment">Doesn't do jack out of the box</li>
-						<li class="fragment">It fights back</li>
-					</ul>
-				</section>
+Controller.init(loops);
+					</code></pre>
 
-				<section>
-					<h2>What do you do before you do anything</h2>
-					<ul>
-						<li class="fragment">Devel module</li>
-						<li class="fragment">Views module</li>
-						<li class="fragment">Example module</li>
-					</ul>
-				</section>
+					<pre><code>
+pointables	: [[], [], [], [], [], [], [], [], [], [], [], [], [], []],
 
-				<section>
-					<h2>Drupal Philosophy</h2>
-					<ul>
-						<li class="fragment">Themes</li>
-						<li class="fragment">Hooks</li>
-					</ul>
-				</section>
-
-				<section>
-					<section>
-						<h2>Creating Web Services</h2>
-						<ul>
-							<li class="fragment">Create module</li>
-							<li class="fragment">Hook into "menu"</li>
-							<li class="fragment">Output JSON</li>
-						</ul>
-					</section>
-
-					<section>
-						<pre><code>
-function webservices_menu() {
-    $items['webservice/videos'] = array(
-            'access callback'	=> true,
-            'page callback'		=> 'get_video',
-            'delivery callback'	=> 'drupal_json_output',
-            'page arguments'	=> array(2, 1)
-    );
-}
-						</code></pre>
-					</section>
-
-					<section>
-						<pre><code>
-function get_video($id) {
-    $result		= menu_execute_active_handler('node/' . $id, false);
-    $node		= $result['nodes'][$id]['#node'];
-    $title		= $node->title;
-    $description= $node->body['und'][0]['value'];
-    $images 	= pwc_get_thumbnails($node);
-    $videoId	= $node->field_video[LANGUAGE_NONE][0]['youtube_id'];
-    $share_url	= 'http://www.youtube.com/watch?v=' . $videoId;
-    $html 		= drupal_render_page($result);
-
-    return array(
-            'type'          => 'video',
-            'title'         => $title,
-            'shortDesc'     => '',
-            'longDesc'      => $description,
-            'images'        => $images,
-            'videoId'       => $videoId,
-            'shareUrl'      => $share_url,
-            'contacts'      => render_contacts($result['nodes'][$id]['field_module_contact']['#items']),
-            'html'          => $html,
-    );
-}
-						</code></pre>
-					</section>
-
-					<section>
-						<pre><code>
+init	: function(loops)
 {
-
-    "type": "video",
-    "title": "A new contract between business and the state",
-    "shortDesc": "",
-    "longDesc": null,
-    "images": {},
-    "videoId": "9VBBiC-gcWE",
-    "shareUrl": "http://www.youtube.com/watch?v=9VBBiC-gcWE",
-    "contacts": [ ],
-    "html": "&lt;html lang=\"en\" dir=\"ltr\" manifest=\"?q=appcache.manifest\"&gt;\n&lt;/html&gt;"
-}
- 						</code></pre>
-					</section>
+	for (var i = loops.length; i--; ) {
+		this.loops[loops[i].id] = loops[i];
+		if (loops[i].param.pointables) {
+			this.pointables[loops[i].param.pointables].push(loops[i].id);
+		}
+	}
+},
+					</pre></code>
+					<ul>
+						<li>References to each Loop class</li>
+						<li>Starts all loops playing/pausing at the same time</li>
+						<li>Populates an array of trigger actions</li>
+					</ul>
 				</section>
-				
+
 				<section>
-					<section>
-						<h2>Customizing the admin</h2>
-					</section>
+					<h2>Leep.loop() callback</h2>
+					<pre><code>
+Leap.loop(function(frame) { Controller.getFrame(frame); });
+					</pre></code>
 
-					<section>
-						<h2>Experience Design</h2>
-						<img src="img/pwc/ex.png" />
-					</section>
+					<pre><code >
+getFrame : function(frame) {
+	this.raiseEvent(frame.pointables.length);
+},
 
-					<section>
-						<h2>Custom Field</h2>
-						<pre><code>
-function field_youtube_field_widget_form(&$form, &$form_state, $field, $instance, $langcode, $items, $delta, $element) {
+raiseEvent : function(pointables) {
+	var playing = [];
 
-  $value = isset($items[$delta]['youtube_id']) ? $items[$delta]['youtube_id'] : '';
-  $widget = $element;
-  $widget['#delta'] = $delta;
+	for (var p = 1; p <= pointables; ++p) {
+		for (var i = 0, l = this.pointables[p].length; i < l; ++i) {
+			playing.push(this.pointables[p][i]);
+		}
+	}
 
-  $widget += array(
-    '#suffix' => '&lt;div class="field-youtube-picker ' . $className . '"&gt;&lt;div id="videos_count&gt;&lt;/div&gt;&lt;div id="videos_container"&gt;&lt;/div&gt;&lt;/div&gt;',
-    '#field_prefix' => '&lt;div class="field-youtube-picker-img"&gt;' . $img . '&lt;/div&gt;',
-    '#attributes' => array('class' => array('edit-field-youtube-picker')),
-    '#attached' => array(
-      'js' => array(drupal_get_path('module', 'field_youtube') . '/field_youtube.js'),
-      'css' => array(
-          drupal_get_path('module', 'field_youtube') . '/field_youtube.css',
-      ),
-    ),
-    '#type' => 'textfield',
-    '#default_value' => $value,
-    '#size' => 15,
-    '#maxlength' => 15,
-  );
-
-  $element['youtube_id'] = $widget;
-
-  return $element;
+	for (var loop in this.loops) {
+		if (playing.indexOf(loop) != -1) {
+			this.loops[loop].play(loop);
+		} else {
+			this.loops[loop].pause(loop);
+		}
+	}
 }
-						</code></pre>
-					</section>
-
-					<section>
-						<h2>YouTube Picker</h2>
-						<img src="img/pwc/video.png" />
-					</section>
-
-					<section>
-						<h2>Selected Video</h2>
-						<img src="img/pwc/video2.png" />
-					</section>
+					</pre></code>
+					<ul>
+						<li>Controller.getFrame() is the Leep.loop() callback</li>
+						<li>Looks for a play trigger, everything else is paused</li>
+					</ul>
 				</section>
 
-				<!--
-					Tips / Tricks
-					* Don't commit settings.php and files directory
-				-->
+				<section>
+					<h2>Improvements</h2>
+					<ul>
+						<li class="fragment">Detect hand/finger combinations</li>
+						<li class="fragment">Use gestures</li>
+						<li class="fragment">Use hand position to change volume</li>
+						<li class="fragment">Fade in/out loops</li>
+						<li class="fragment">Switch in/out loop groups</li>
+						<li class="fragment">Compensate for twitchy leap</li>
+					</ul>
+				</section>
+
+				<section>
+					<h2>Thank You</h2>
+					<p><a href="https://github.com/wkolean/leap-loop" target="_blank">https://github.com/wkolean/leap-loop</a></p>
+				</section>
+
 			</div>
 
 		</div>
@@ -232,7 +166,7 @@ function field_youtube_field_widget_form(&$form, &$form_state, $field, $instance
 					{ src: 'reveal.js/lib/js/classList.js', condition: function() { return !document.body.classList; } },
 					{ src: 'reveal.js/plugin/markdown/showdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
 					{ src: 'reveal.js/plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
-					{ src: 'reveal.js/plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+					{ src: 'reveal.js/plugin/highlight/highlight.js', async: true, callback: function() { hljs.tabReplace = '    '; hljs.initHighlightingOnLoad(); } },
 					{ src: 'reveal.js/plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
 					{ src: 'reveal.js/plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }
 					// { src: 'plugin/remotes/remotes.js', async: true, condition: function() { return !!document.body.classList; } }
