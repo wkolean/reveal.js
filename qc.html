@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+
+	<head>
+		<meta charset="utf-8">
+
+		<title>Quartz Composer Presentation</title>
+
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<link rel="stylesheet" href="reveal.js/css/reveal.min.css">
+		<link rel="stylesheet" href="reveal.js/css/theme/default.css" id="theme">
+
+		<!-- For syntax highlighting -->
+		<link rel="stylesheet" href="reveal.js/lib/css/zenburn.css">
+
+		<!-- If the query includes 'print-pdf', use the PDF print sheet -->
+		<script>
+			document.write( '<link rel="stylesheet" href="reveal.js/css/print/' + ( window.location.search.match( /print-pdf/gi ) ? 'pdf' : 'paper' ) + '.css" type="text/css" media="print">' );
+		</script>
+
+		<!--[if lt IE 9]>
+		<script src="lib/js/html5shiv.js"></script>
+		<![endif]-->
+	</head>
+
+	<body>
+
+		<div class="reveal">
+
+			<!-- Any section element inside of this container is displayed as a slide -->
+			<div class="slides">
+
+				<section>
+					<h2>Quartz Composer</h2>
+				</section>
+
+				<section>
+					<h2>What is Quartz Composer?</h2>
+					<p>Visual programming environment for processing and rendering graphical data.</p>
+					<img src="img/qc/render_sprite.jpg" />
+				</section>
+
+				<section>
+					<h2>Download from developer.apple.com</h2>
+					<img src="img/qc/download.png" />
+				</section>
+
+				<section>
+					<h2>Facebook Home</h2>
+					<ul>
+						<li class="fragment">"You don't design something like Facebook Home using Photoshop."
+							<ul>
+								<li class="fragment">Julie Zhuo, Product design director @ Facebook</li>
+								<li class="fragment"><a href="https://medium.com/the-year-of-the-looking-glass/af182add5a2f">https://medium.com/the-year-of-the-looking-glass/af182add5a2f</a></li>
+							</ul>
+						</li>
+						<li class="fragment">Introduced by Mike Matas</li>
+					</ul>
+				</section>
+
+				<section>
+					<h2>Quartz Composer coordinate system</h2>
+					<img src="img/qc/coords_ws.gif" />
+				</section>
+
+				<section>
+					<h2>Links</h2>
+					<ul>
+						<li>Apple Developer Documentation <a href="https://developer.apple.com/library/mac/#documentation/GraphicsImaging/Conceptual/QuartzComposerUserGuide/qc_intro/qc_intro.html#//apple_ref/doc/uid/TP40005381">https://developer.apple.com/library/mac/#documentation/GraphicsImaging/Conceptual/QuartzComposerUserGuide/qc_intro/qc_intro.html#//apple_ref/doc/uid/TP40005381</a></li>
+						<li>Dave O'Brien Facebook Home tutorials <a href="http://www.youtube.com/watch?v=4N6Qr1hsxU8">http://www.youtube.com/watch?v=4N6Qr1hsxU8</a></li>
+						<li>QuickTime Player 5 <a href="http://support.apple.com/kb/DL923">http://support.apple.com/kb/DL923</a></li>
+					</ul>
+				</section>
+
+			</div>
+
+		</div>
+
+		<script src="reveal.js/lib/js/head.min.js"></script>
+		<script src="reveal.js/js/reveal.min.js"></script>
+
+		<script>
+
+			// Full list of configuration options available here:
+			// https://github.com/hakimel/reveal.js#configuration
+			Reveal.initialize({
+				controls: true,
+				progress: true,
+				history: true,
+				center: true,
+				rollingLinks: false,
+
+				theme: Reveal.getQueryHash().theme, // available themes are in /css/theme
+				transition: Reveal.getQueryHash().transition || 'default', // default/cube/page/concave/zoom/linear/fade/none
+
+				// Optional libraries used to extend on reveal.js
+				dependencies: [
+					{ src: 'reveal.js/lib/js/classList.js', condition: function() { return !document.body.classList; } },
+					{ src: 'reveal.js/plugin/markdown/showdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+					{ src: 'reveal.js/plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+					{ src: 'reveal.js/plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+					{ src: 'reveal.js/plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+					{ src: 'reveal.js/plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }
+					// { src: 'plugin/remotes/remotes.js', async: true, condition: function() { return !!document.body.classList; } }
+				]
+			});
+
+		</script>
+
+	</body>
+</html>

@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+
+	<head>
+		<meta charset="utf-8">
+
+		<title>PwC Drupal CMS Presentation</title>
+
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<link rel="stylesheet" href="reveal.js/css/reveal.min.css">
+		<link rel="stylesheet" href="reveal.js/css/theme/default.css" id="theme">
+
+		<!-- For syntax highlighting -->
+		<link rel="stylesheet" href="reveal.js/lib/css/zenburn.css">
+
+		<!-- If the query includes 'print-pdf', use the PDF print sheet -->
+		<script>
+			document.write( '<link rel="stylesheet" href="reveal.js/css/print/' + ( window.location.search.match( /print-pdf/gi ) ? 'pdf' : 'paper' ) + '.css" type="text/css" media="print">' );
+		</script>
+
+		<!--[if lt IE 9]>
+		<script src="lib/js/html5shiv.js"></script>
+		<![endif]-->
+	</head>
+
+	<body>
+
+		<div class="reveal">
+
+			<!-- Any section element inside of this container is displayed as a slide -->
+			<div class="slides">
+
+				<section>
+					<h2>PwC Drupal CMS</h2>
+				</section>
+
+				<section>
+					<h2>Why CMS</h2>
+					<ul>
+						<li class="fragment">Hybrid iPad/Web app</li>
+						<li class="fragment">PwC controls the content</li>
+						<li class="fragment">Quicker updates</li>
+					</ul>
+				</section>
+
+				<section>
+					<h2>Why Drupal</h2>
+					<ul>
+						<li class="fragment">Free</li>
+						<li class="fragment">Documented</li>
+						<li class="fragment">PHP</li>
+					</ul>
+				</section>
+
+				<section>
+					<h2>What you need to know about Drupal</h2>
+					<ul>
+						<li class="fragment">Doesn't do jack out of the box</li>
+						<li class="fragment">It fights back</li>
+					</ul>
+				</section>
+
+				<section>
+					<h2>What do you do before you do anything</h2>
+					<ul>
+						<li class="fragment">Devel module</li>
+						<li class="fragment">Views module</li>
+						<li class="fragment">Example module</li>
+					</ul>
+				</section>
+
+				<section>
+					<h2>Drupal Philosophy</h2>
+					<ul>
+						<li class="fragment">Themes</li>
+						<li class="fragment">Hooks</li>
+					</ul>
+				</section>
+
+				<section>
+					<section>
+						<h2>Creating Web Services</h2>
+						<ul>
+							<li class="fragment">Create module</li>
+							<li class="fragment">Hook into "menu"</li>
+							<li class="fragment">Output JSON</li>
+						</ul>
+					</section>
+
+					<section>
+						<pre><code>
+function webservices_menu() {
+    $items['webservice/videos'] = array(
+            'access callback'	=> true,
+            'page callback'		=> 'get_video',
+            'delivery callback'	=> 'drupal_json_output',
+            'page arguments'	=> array(2, 1)
+    );
+}
+						</code></pre>
+					</section>
+
+					<section>
+						<pre><code>
+function get_video($id) {
+    $result		= menu_execute_active_handler('node/' . $id, false);
+    $node		= $result['nodes'][$id]['#node'];
+    $title		= $node->title;
+    $description= $node->body['und'][0]['value'];
+    $images 	= pwc_get_thumbnails($node);
+    $videoId	= $node->field_video[LANGUAGE_NONE][0]['youtube_id'];
+    $share_url	= 'http://www.youtube.com/watch?v=' . $videoId;
+    $html 		= drupal_render_page($result);
+
+    return array(
+            'type'          => 'video',
+            'title'         => $title,
+            'shortDesc'     => '',
+            'longDesc'      => $description,
+            'images'        => $images,
+            'videoId'       => $videoId,
+            'shareUrl'      => $share_url,
+            'contacts'      => render_contacts($result['nodes'][$id]['field_module_contact']['#items']),
+            'html'          => $html,
+    );
+}
+						</code></pre>
+					</section>
+
+					<section>
+						<pre><code>
+{
+
+    "type": "video",
+    "title": "A new contract between business and the state",
+    "shortDesc": "",
+    "longDesc": null,
+    "images": {},
+    "videoId": "9VBBiC-gcWE",
+    "shareUrl": "http://www.youtube.com/watch?v=9VBBiC-gcWE",
+    "contacts": [ ],
+    "html": "&lt;html lang=\"en\" dir=\"ltr\" manifest=\"?q=appcache.manifest\"&gt;\n&lt;/html&gt;"
+}
+ 						</code></pre>
+					</section>
+				</section>
+				
+				<section>
+					<section>
+						<h2>Customizing the admin</h2>
+					</section>
+
+					<section>
+						<h2>Experience Design</h2>
+						<img src="img/pwc/ex.png" />
+					</section>
+
+					<section>
+						<h2>Custom Field</h2>
+						<pre><code>
+function field_youtube_field_widget_form(&$form, &$form_state, $field, $instance, $langcode, $items, $delta, $element) {
+
+  $value = isset($items[$delta]['youtube_id']) ? $items[$delta]['youtube_id'] : '';
+  $widget = $element;
+  $widget['#delta'] = $delta;
+
+  $widget += array(
+    '#suffix' => '&lt;div class="field-youtube-picker ' . $className . '"&gt;&lt;div id="videos_count&gt;&lt;/div&gt;&lt;div id="videos_container"&gt;&lt;/div&gt;&lt;/div&gt;',
+    '#field_prefix' => '&lt;div class="field-youtube-picker-img"&gt;' . $img . '&lt;/div&gt;',
+    '#attributes' => array('class' => array('edit-field-youtube-picker')),
+    '#attached' => array(
+      'js' => array(drupal_get_path('module', 'field_youtube') . '/field_youtube.js'),
+      'css' => array(
+          drupal_get_path('module', 'field_youtube') . '/field_youtube.css',
+      ),
+    ),
+    '#type' => 'textfield',
+    '#default_value' => $value,
+    '#size' => 15,
+    '#maxlength' => 15,
+  );
+
+  $element['youtube_id'] = $widget;
+
+  return $element;
+}
+						</code></pre>
+					</section>
+
+					<section>
+						<h2>YouTube Picker</h2>
+						<img src="img/pwc/video.png" />
+					</section>
+
+					<section>
+						<h2>Selected Video</h2>
+						<img src="img/pwc/video2.png" />
+					</section>
+				</section>
+
+				<!--
+					Tips / Tricks
+					* Don't commit settings.php and files directory
+				-->
+			</div>
+
+		</div>
+
+		<script src="reveal.js/lib/js/head.min.js"></script>
+		<script src="reveal.js/js/reveal.min.js"></script>
+
+		<script>
+
+			// Full list of configuration options available here:
+			// https://github.com/hakimel/reveal.js#configuration
+			Reveal.initialize({
+				controls: true,
+				progress: true,
+				history: true,
+				center: true,
+				rollingLinks: false,
+
+				theme: Reveal.getQueryHash().theme, // available themes are in /css/theme
+				transition: Reveal.getQueryHash().transition || 'default', // default/cube/page/concave/zoom/linear/fade/none
+
+				// Optional libraries used to extend on reveal.js
+				dependencies: [
+					{ src: 'reveal.js/lib/js/classList.js', condition: function() { return !document.body.classList; } },
+					{ src: 'reveal.js/plugin/markdown/showdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+					{ src: 'reveal.js/plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+					{ src: 'reveal.js/plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+					{ src: 'reveal.js/plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+					{ src: 'reveal.js/plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }
+					// { src: 'plugin/remotes/remotes.js', async: true, condition: function() { return !!document.body.classList; } }
+				]
+			});
+
+		</script>
+
+	</body>
+</html>
