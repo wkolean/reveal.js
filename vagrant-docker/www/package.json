@@ -1,0 +1,13 @@
+{
+  "name": "docker-demo",
+  "version": "0.0.0",
+  "description": "docker demo project",
+  "main": "app.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "devDependencies": {
+    "express": "*",
+    "mongoose": "^4.0.1"
+  }
+}

@@ -1,0 +1,64 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure(2) do |config|
+
+  config.vm.define "mongo" do |v|
+    v.vm.provider "docker" do |d|
+      d.image       = "mongo:3"
+      d.name        = "mongo"
+      d.vagrant_vagrantfile = "./Vagrantfile.proxy"
+    end
+  end
+
+
+  config.vm.define "nodejs" do |v|
+    v.vm.provider "docker" do |d|
+      d.build_dir   = "www"
+      d.ports       = ["8888:8888"]
+      d.name        = "nodejs"
+      d.create_args = ["-w=/vagrant/www"]
+      d.link("mongo:mongo")
+      d.cmd         = ["./start.sh"]
+      d.vagrant_vagrantfile = "./Vagrantfile.proxy"
+    end
+  end
+
+
+  config.vm.define "docker-aws" do |v|
+    v.vm.box = "dummy"
+    
+    v.vm.provider :aws do |aws, override|
+      aws.access_key_id     = ENV["WILL_AWS_KEY"]
+      aws.secret_access_key = ENV["WILL_AWS_SECRET"]
+      aws.keypair_name      = ENV["WILL_AWS_KEYNAME"]
+
+      aws.ami               = "ami-9a562df2"  # Ubuntu Server 14.04 LTS (HVM), SSD Volume Type
+      aws.region            = "us-east-1"
+      aws.security_groups   = ["docker"]
+      aws.tags              = {
+        "Name" => "docker-test"
+      }
+
+
+      override.ssh.username = "ubuntu"
+      override.ssh.private_key_path = ENV["WILL_AWS_KEYPATH"]
+
+
+      config.vm.provision "docker" do |d|
+        d.run "mongo:3",
+          auto_assign_name: false,
+          args: "--name 'mongo' -p '27017:27017'"
+      end
+
+
+      config.vm.provision "docker" do |d|
+        d.build_image "/vagrant/dockerfiles/nodejs-aws/", args: "-t nodejs"
+        d.run "nodejs", args: "--name 'nodejs' -p '8888:8888' --link mongo:mongo"
+      end
+
+    end
+  end
+
+
+end

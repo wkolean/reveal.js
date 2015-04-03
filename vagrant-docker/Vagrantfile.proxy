@@ -1,0 +1,19 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure(2) do |config|
+  config.vm.box = "phusion/ubuntu-14.04-amd64"
+  config.vm.provision "docker"
+
+  # The following line terminates all ssh connections. Therefore
+  # Vagrant will be forced to reconnect.
+  # That's a workaround to have the docker command in the PATH
+  config.vm.provision "shell", inline: "ps aux | grep 'sshd:' | awk '{print $2}' | xargs kill"
+
+  config.vm.network :forwarded_port, host: 8888, guest: 8888    # node app
+
+  config.vm.provider :virtualbox do |vb|
+    vb.name = "docker-host"
+  end
+
+end
